@@ -1,4 +1,5 @@
 import csv
+import math
 import sys
 
 def load_taxonomy_from_csv(filename):
@@ -16,7 +17,8 @@ def load_taxonomy_from_csv(filename):
       if strand_id not in strands:
         strands[strand_id] = {
           'name': strand_name,
-          'standards': {}
+          'standards': {},
+          'questions': {}
         }
 
       if standard_id not in strands[strand_id]['standards']:
@@ -25,48 +27,44 @@ def load_taxonomy_from_csv(filename):
           'questions': {}
         }
 
-      strands[strand_id]['standards'][standard_id]['questions'][question_id] = {
-        'difficulty': float(difficulty)
-      }
-
+      question = {'difficulty': float(difficulty)}
+      strands[strand_id]['questions'][question_id] = question
+      strands[strand_id]['standards'][standard_id]['questions'][question_id] = question
   return strands
 
+def sort_strand_ids_by_questions_count(taxonomy):
+  num_questions_by_strand = {}
+  for strand_id in taxonomy.keys():
+    num_questions_by_strand[strand_id] = len(taxonomy[strand_id]['questions'])
 
-def pick_questions(count):
-  # TODO
-  return list(map(str, range(0, count)))
+  return sorted(num_questions_by_strand, key=num_questions_by_strand.__getitem__)
+
+def find_questions_in_strand(taxonomy, strand_id, count):
+  return list(taxonomy[strand_id]['questions'])[:count]
+
+def pick_questions(taxonomy, count):
+  num_strands = len(taxonomy.keys())
+  results_per_strand = math.floor(count/num_strands)
+
+  results = []
+  strand_iteration = 0
+  for strand_id in sort_strand_ids_by_questions_count(taxonomy):
+    strand_iteration += 1
+    results = results + list(taxonomy[strand_id]['questions'])[:results_per_strand]
+    if len(results) != count:
+      results_per_strand = math.floor((count-len(results))/(num_strands-strand_iteration))
+
+  return results
 
 if __name__ == '__main__':
   if len(sys.argv) <= 1 or not sys.argv[1].isdigit():
     print("Usage: python3 questions_picker.py <NUMBER OF QUESTIONS>")
     sys.exit()
 
+  num_questions = int(sys.argv[1])
+
   taxonomy = load_taxonomy_from_csv('questions.csv')
 
-  num_questions = int(sys.argv[1])
-  questions_list = pick_questions(num_questions)
-  print(','.join(questions_list))
+  questions = pick_questions(taxonomy, num_questions)
 
-
-"""
-{'1': {'name': 'Nouns',
-       'standards': {'1': {'name': 'Common Nouns',
-                           'questions': {'1': {'difficulty': 0.7},
-                                         '2': {'difficulty': 0.6}}},
-                     '2': {'name': 'Abstract Nouns',
-                           'questions': {'3': {'difficulty': 0.8}}},
-                     '3': {'name': 'Proper Nouns',
-                           'questions': {'4': {'difficulty': 0.2},
-                                         '5': {'difficulty': 0.5},
-                                         '6': {'difficulty': 0.4}}}}},
- '2': {'name': 'Verbs',
-       'standards': {'4': {'name': 'Action Verbs',
-                           'questions': {'7': {'difficulty': 0.9},
-                                         '8': {'difficulty': 0.1}}},
-                     '5': {'name': 'Transitive Verbs',
-                           'questions': {'10': {'difficulty': 0.6},
-                                         '11': {'difficulty': 0.4},
-                                         '9': {'difficulty': 0.3}}},
-                     '6': {'name': 'Reflexive Verbs',
-                           'questions': {'12': {'difficulty': 0.2}}}}}}
-"""
+  print(','.join(questions))
